@@ -1,0 +1,182 @@
+
+
+Hub -> centralized servers
+
+Centralized servers - multiple - interconnected - ( lets say 4-5 )
+→ predefined IP address in code ( hardcoded ) -> initiating connection
+→ every time at least 2 central server connection ( fault tolerance )
+→ central server use hash table for the file name and peer information DHT
+
+Peer connect with central servers 
+→ peer informs file to be uploaded -- upload -- this will be saved in central server hash table
+→ connection alive every 10 mins check 
+
+Search
+→ contact central server with filename ( search module )
+→ file name exact matching
+→ multiple files with the same hash stored in a different table ( replication )
+
+Download
+→ get file meta and corresponding peers
+→ divide the file into chunks and download parts ( from which peer, which chunk ) ( load balancing )
+→ each chunk verification by hash matching ( chunk security and validation )
+→ complete file hash matching ( file authenticity )
+
+< key, value > -> key = file name, value = peer ip address, timestamp, file hash, size
+resolving ip address? -> node unique id? 
+hub having range of unique ids for peers
+
+-> new hub joining protocol
+-> new peer joining protocol
+	-> unique id or ip address
+-> file upload protocol
+	-> file indexing
+-> file download protocol
+-> hash verification 
+-> peer or hub runtime -> connection alive checking protocol
+
+
+RPC client
+
+Hub:
+Uid :: 32 bytes
+Port1 :: listens for peer hubs
+Port2 :: data servers communication
+
+Cmd :: ./hub -p13000 -p2 4000
+
+
+
+Dnode
+Uid :: it will be given by any one of the hubs
+Port1 :: data port for other data nodes
+
+Port2 :: rpc client port
+Upload files
+ 
+Download files
+
+
+	
+
+Cmd :: ./dnode -h ip:port -p1 5000 -p2 6000
+
+RPC client
+
+./rpc_client -dnode ip:port -u file_name
+./rpc_client -dnode ip:port -d file_name
+
+
+- HUb communication
+
+Join
+
+-d filename
+Result ::  Index_data of the file, destination servers ip address
+-u filename
+Result::  destination ip addresses
+
+
+File indexing
+
+Split the file into chunks of 2MB
+Hash each chunk (32 bytes)
+Hash the concatenation of the chunk hashes, this will serve as file hash.
+
+DHT::
+File_name , file_hash
+File_hash, {index_data, destination_server_uids}
+
+In-memory data structure 
+	Dnode_uid, dnode_ip, dnode_port, dnode_flags (32 bytes + 4 bytes + 2 bytes + 2 bytes) (40 bytes)
+
+
+
+HUb -hub communication
+
+1_ search for file_name
+2) file_hash
+
+2 users:
+hub
+map for file name, file hash
+map for file hash, file information < list of peers to download from >
+alive peers list
+client
+maintains map for uploaded files
+map for file name, file hash
+map for file hash, file information:
+file location
+size
+file name
+
+hub:
+initialization:
+initialize DHT
+unique id for peers initialization
+ports open ( two server ports )
+while running:
+Check for peer state when 
+upload request:	
+check file hash similar file present
+check filename and size ( replication )
+add as another peer for file
+else
+create new index with this file hash
+on download request:
+check file by file name ( complete matching )
+check if peers are alive or not for peers last active before 30 mins:
+if not then set not active
+if active then check for file upload by peer
+send list to requesting peer
+
+peer:
+initialization:
+predefined ip address list of hubs
+try connection with 2 
+get unique id and client details
+system start:
+recheck hub connections
+
+check files uploaded are available or not
+upload:
+divide file into chunks and keep chunks hash
+create file hash
+ send file details to hubs ( filename, size, uid, file hash, chunks hash )
+download:
+request list from hubs
+from list check connection with peers
+keep a queue for chunks
+download chunks from different peers
+verify each chunk
+at the end verify whole file hash
+seed ( replicate upload )
+checkup by hub:
+check if file is present for upload or not ( last checkup before 30 mins )
+if not then return FALSE
+else send TRUE
+
+
+if node rejects download request:
+send FAIL to hub 
+hub rechecks connection with corresponding peer for file
+if refused, remove peer from list of ip address for file
+if only 1 peer was there so delete file only
+
+if hub fails:
+peers find new hub and send upload details for files
+
+if peer fails:
+while downloading restart chunk download from another peer
+
+
+
+# dnode directory
+
+
+
+make sure to make bin and test directory in the root folder of the project. 
+for example if your project is at ~/Desktop/PeerToPeer_DistributedFileSystem,
+make sure that you have ~/Desktop/PeerToPeer_DistributedFileSystem/test and ~/Desktop/PeerToPeer_DistributedFileSystem/bin present as well
+
+samples folder is created only because we are testing the system on one local machine only, so when we run dnode1, it upload the file present in samples folder (see dnode1.sh, you will see that the path of the file being uploaded is there.)
